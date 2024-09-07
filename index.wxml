@@ -1,0 +1,10 @@
+<view class="container">
+  <camera id="camera" mode="scanCode" bindscancode="handleScanCode" style="width: 100%; height: 100%;" />
+  
+  <view class="result">
+    <text>扫描结果: {{scanResult}}</text>
+    <view wx:if="{{scanTime}}">
+      <text>扫描时间: {{scanTime}}</text>
+    </view>
+  </view>
+</view>
