@@ -1,11 +1,11 @@
 Page({
   data: {
-    scanResult: '暂无结果', // 扫描结果默认值
-    scanTime: '',           // 扫描时间
-    isScanning: false,      // 是否处于扫描状态
-    scanInterval: null,     // 定时器用于自动扫描
-    cameraContext: null,    // 相机上下文
-    photoPath: '',          // 截图保存路径
+    scanResult: '暂无结果',
+    scanTime: '',
+    isScanning: false,
+    cameraContext: null,
+    photoPath: '',
+    scanTimeoutId: null, // 保存 setTimeout 的 ID
   },
 
   // 格式化时间函数
@@ -18,9 +18,13 @@ Page({
 
   // 扫描条码函数
   scanCode() {
+    if (!this.data.isScanning) {
+      return; // 如果扫描状态被停止，直接退出
+    }
+
     wx.scanCode({
-      onlyFromCamera: true, // 只允许相机扫描
-      scanType: ['barCode'], // 只扫描条形码，避免多选
+      onlyFromCamera: true,
+      scanType: ['barCode'],
       success: (res) => {
         const currentTime = this.formatTime(new Date());
         console.log('扫描成功:', res);
@@ -34,7 +38,17 @@ Page({
         // 延时拍照，确保 scanCode 完成后调用
         setTimeout(() => {
           this.takePhoto();
-        }, 300); // 延时300ms后拍照（需要测试，因为调用完摄像头需要跳转回界面进行拍照有延迟）
+        }, 300);
+
+        // 使用 setTimeout 进行下一次扫描
+        const timeoutId = setTimeout(() => {
+          this.scanCode(); // 继续扫描
+        }, 2000);
+
+        // 保存定时器 ID
+        this.setData({
+          scanTimeoutId: timeoutId
+        });
       },
       fail: (err) => {
         console.log('扫描失败:', err);
@@ -47,13 +61,12 @@ Page({
   },
 
   // 拍照保存函数
-takePhoto () {
+  takePhoto() {
     const cameraContext = this.data.cameraContext;
     cameraContext.takePhoto({
       quality: 'high',
       success: (res) => {
         console.log('照片路径:', res.tempImagePath);
-        // 保存照片路径到页面中，展示照片
         this.setData({
           photoPath: res.tempImagePath
         });
@@ -74,28 +87,20 @@ takePhoto () {
 
     // 立即触发第一次扫描
     this.scanCode();
-
-    // 设置定时器，每隔3秒扫描一次
-    const intervalId = setInterval(() => {
-      if (this.data.isScanning) {
-        this.scanCode();
-      }
-    }, 3000); // 每3秒进行一次扫描
-
-    // 保存定时器ID
-    this.setData({
-      scanInterval: intervalId
-    });
   },
 
   // 停止扫描
   stopScan() {
     this.setData({ isScanning: false });
 
-    // 清除定时器
-    clearInterval(this.data.scanInterval);
-    this.setData({
-      scanInterval: null
-    });
+    // 清除定时任务
+    const timeoutId = this.data.scanTimeoutId;
+    if (timeoutId) {
+      clearTimeout(timeoutId); // 清除正在等待的 setTimeout
+      this.setData({ scanTimeoutId: null });
+    }
+
+    console.log("扫描已停止");
   }
 });
+
